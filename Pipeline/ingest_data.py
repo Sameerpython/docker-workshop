@@ -7,68 +7,74 @@
 import pandas as pd
 from sqlalchemy import create_engine
 from tqdm.auto import tqdm
+import click
 
 
-year=2021
-moth=1
-
-urls=f'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/yellow_tripdata_{year}-{month:02d}.csv.gz'
-
-dtype = {
-    "VendorID": "Int64",
-    "passenger_count": "Int64",
-    "trip_distance": "float64",
-    "RatecodeID": "Int64",
-    "store_and_fwd_flag": "string",
-    "PULocationID": "Int64",
-    "DOLocationID": "Int64",
-    "payment_type": "Int64",
-    "fare_amount": "float64",
-    "extra": "float64",
-    "mta_tax": "float64",
-    "tip_amount": "float64",
-    "tolls_amount": "float64",
-    "improvement_surcharge": "float64",
-    "total_amount": "float64",
-    "congestion_surcharge": "float64"
-}
-
-parse_dates = [
-    "tpep_pickup_datetime",
-    "tpep_dropoff_datetime"
-]
+@click.command()
+@click.option('--pg-user', default='root', help='PostgreSQL username')
+@click.option('--pg-pass', default='root', help='PostgreSQL password')
+@click.option('--pg-host', default='localhost', help='PostgreSQL host')
+@click.option('--pg-port', default='5432', help='PostgreSQL port')
+@click.option('--pg-db', default='ny_taxi', help='PostgreSQL database name')
+@click.option('--year', default=2021, type=int, help='Year of the data')
+@click.option('--month', default=1, type=int, help='Month of the data')
+@click.option('--chunksize', default=100000, type=int, help='Chunk size for ingestion')
+@click.option('--target-table', default='yellow_taxi_data', help='Target table name')
+def run(pg_user, pg_pass, pg_host, pg_port, pg_db, year, month, chunksize, target_table):
 
 
-def run():
-    target_table='yellow_taxi_data'
 
-    pg_user= 'root'
-    pg_pass = 'root'
-    pg_host = 'localhost'
-    pg_port =5432
-    pg_db = 'ny_taxi'
-    engine = create_engine('postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{ny_taxi}')
+    urls=f'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/yellow_tripdata_{year}-{month:02d}.csv.gz'
 
-    df.head(0).to_sql(name={target_table}, con=engine, if_exists='replace')
+    dtype = {
+        "VendorID": "Int64",
+        "passenger_count": "Int64",
+        "trip_distance": "float64",
+        "RatecodeID": "Int64",
+        "store_and_fwd_flag": "string",
+        "PULocationID": "Int64",
+        "DOLocationID": "Int64",
+        "payment_type": "Int64",
+        "fare_amount": "float64",
+        "extra": "float64",
+        "mta_tax": "float64",
+        "tip_amount": "float64",
+        "tolls_amount": "float64",
+        "improvement_surcharge": "float64",
+        "total_amount": "float64",
+        "congestion_surcharge": "float64"
+    }
 
+    parse_dates = [
+        "tpep_pickup_datetime",
+        "tpep_dropoff_datetime"
+    ]
     df_iter = pd.read_csv(
-        urls,
+    urls,
 
-        dtype=dtype,
-        parse_dates=parse_dates,
-        iterator=True,
-        chunksize=100000
+    dtype=dtype,
+    parse_dates=parse_dates,
+    iterator=True,
+    chunksize=100000
     )
+    # pg_user= 'root'
+    # pg_pass = 'root'
+    # pg_host = 'localhost'
+    # pg_port =5432
+    # pg_db = 'ny_taxi'
+    engine = create_engine(f'postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}')
+
     first=True
     for chuncks in tqdm(df_iter):
         if first:
-            df.head(0).to_sql(name={target_table}, con=engine, if_exists='replace')
+            chuncks.head(0).to_sql(name=target_table   , con=engine, if_exists='replace')
             first=False
 
-        chuncks.to_sql(name={target_table}, con=engine, if_exists='append')
+        chuncks.to_sql(name=target_table, con=engine, if_exists='append')
 
 
-if __name
+if __name__=='__main__':
+    run()
 
 
 
